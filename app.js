@@ -23,7 +23,9 @@ function renderRequests(){
   const n=$("request-template").content.cloneNode(true);
   n.querySelector(".vehicle-tag").textContent=r.vehicle;
   n.querySelector(".type-tag").textContent=r.type;
-  n.querySelector(".status-badge").textContent=r.status;
+  const badge=n.querySelector(".status-badge");
+  badge.textContent=r.status;
+  badge.classList.add(r.status==="Создана"?"status-created":r.status==="В работе"?"status-working":r.status==="Ожидаются запчасти"?"status-parts":"status-completed");
   n.querySelector(".comment").textContent=r.comment||"Без комментария";
   n.querySelector(".meta").textContent="Создана: "+dateText(r.createdAt);
   const s=n.querySelector(".status-select");s.value=r.status;
