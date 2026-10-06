@@ -1,19 +1,12 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() { return request.auth != null; }
-    function isManager() {
-      return signedIn() &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "manager";
+    match /repairRequests/{requestId} {
+      allow read, create, update: if true;
+      allow delete: if false;
     }
     match /users/{userId} {
-      allow read: if signedIn() && request.auth.uid == userId;
-      allow write: if false;
-    }
-    match /repairRequests/{requestId} {
-      allow read: if signedIn();
-      allow create, update: if isManager();
-      allow delete: if false;
+      allow read, write: if false;
     }
   }
 }
