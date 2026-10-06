@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-import { getFirestore, collection, addDoc, updateDoc, doc, query, onSnapshot } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, updateDoc, doc, getDocs } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 
 const app=initializeApp(firebaseConfig),db=getFirestore(app);
@@ -37,11 +37,22 @@ function renderRequests(){
  });
 }
 
+let pollTimer=null;
+async function loadRequests(){
+ try{
+  const snap=await getDocs(collection(db,"repairRequests"));
+  allRequests=snap.docs.map(d=>({id:d.id,...d.data()}));
+  renderRequests();
+  $("requests").dataset.loaded="1";
+ }catch(err){
+  console.error(err);
+  $("requests").innerHTML='<div class="card error"><b>Не удалось загрузить заявки.</b><br>'+((err.code||"Ошибка") + " — " + err.message)+'</div>';
+ }
+}
 function subscribe(){
- const q=query(collection(db,"repairRequests"));
- if(unsubscribe)unsubscribe();
- unsubscribe=onSnapshot(q,s=>{allRequests=s.docs.map(d=>({id:d.id,...d.data()}));renderRequests()},
- err=>{console.error(err);$("requests").innerHTML='<div class="card error">Не удалось загрузить заявки. Проверьте настройки Firestore.</div>'});
+ if(pollTimer)clearInterval(pollTimer);
+ loadRequests();
+ pollTimer=setInterval(loadRequests,3000);
 }
 
 $("status-filter").addEventListener("change",renderRequests);
@@ -54,16 +65,17 @@ document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>{
 $("request-form").addEventListener("submit",async e=>{
  e.preventDefault();hide("create-message");
  try{
-  await addDoc(collection(db,"repairRequests"),{
-   vehicle:$("vehicle").value.trim().toUpperCase(),
-   type:$("type").value,
-   comment:$("comment").value.trim(),
-   status:"Создана",
-   createdAt:new Date(),
-   updatedAt:new Date()
+  const vehicle=$("vehicle").value.trim().toUpperCase();
+  const type=$("type").value;
+  const comment=$("comment").value.trim();
+  const createdAt=new Date();
+  const ref=await addDoc(collection(db,"repairRequests"),{
+   vehicle,type,comment,status:"Создана",createdAt,updatedAt:createdAt
   });
+  allRequests.unshift({id:ref.id,vehicle,type,comment,status:"Создана",createdAt,updatedAt:createdAt});
+  renderRequests();
   $("vehicle").value="";$("comment").value="";
-  $("create-message").textContent="Заявка создана.";
+  $("create-message").textContent="Заявка создана и добавлена в активные.";
   show("create-message");
  }catch(err){$("create-message").textContent="Заявка не создана: "+(err.code||"ошибка")+" — "+err.message;show("create-message")}
 });
