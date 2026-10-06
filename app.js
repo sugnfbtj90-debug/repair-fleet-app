@@ -24,6 +24,7 @@ function renderRequests(){
   const n=$("request-template").content.cloneNode(true);
   n.querySelector(".vehicle-tag").textContent=r.vehicle||"—";
   n.querySelector(".type-tag").textContent=r.type||"";
+  n.querySelector(".repair-type-tag").textContent=r.repairType||"";
   n.querySelector(".fleet-tag").textContent=r.fleet||"";
   const badge=n.querySelector(".status-badge");
   badge.textContent=r.status||"Создана";
@@ -64,6 +65,10 @@ async function loadRequests(){
 
 $("show-active-btn").addEventListener("click",loadRequests);
 $("status-filter").addEventListener("change",renderRequests);
+$("type").addEventListener("change",()=>{
+  const wrap=$("repair-type-wrap");
+  if($("type").value==="Ремонт") show("repair-type-wrap"); else hide("repair-type-wrap");
+});
 document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>{
  document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===b));
  document.querySelectorAll(".tab-panel").forEach(x=>x.classList.add("hidden"));
@@ -78,9 +83,9 @@ $("request-form").addEventListener("submit",async e=>{
   const fleet=$("fleet").value;
   const comment=$("comment").value.trim();
   const createdAt=new Date();
-  const ref=await addDoc(collection(db,"repairRequests"),{vehicle,type,fleet,comment,status:"Создана",createdAt,updatedAt:createdAt});
-  allRequests=[{id:ref.id,vehicle,type,fleet,comment,status:"Создана",createdAt,updatedAt:createdAt},...allRequests.filter(x=>x.id!==ref.id)];
-  $("vehicle").value="";$("comment").value="";$("fleet").value="";
+  const ref=await addDoc(collection(db,"repairRequests"),{vehicle,type,repairType,fleet,comment,status:"Создана",createdAt,updatedAt:createdAt});
+  allRequests=[{id:ref.id,vehicle,type,repairType,fleet,comment,status:"Создана",createdAt,updatedAt:createdAt},...allRequests.filter(x=>x.id!==ref.id)];
+  $("vehicle").value="";$("comment").value="";$("fleet").value="";$("type").value="Диагностика";hide("repair-type-wrap");
   $("create-message").textContent="Заявка создана. Статус: Создана.";show("create-message");
   document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x.dataset.tab==="active"));
   document.querySelectorAll(".tab-panel").forEach(x=>x.classList.add("hidden"));
@@ -98,8 +103,8 @@ $("load-stats").addEventListener("click",()=>{
  $("stats-content").innerHTML='<div class="card"><h3>Сводка</h3><div class="summary-cards"><div><b>'+rows.length+'</b><span>всего заявок</span></div><div><b>'+active+'</b><span>активных</span></div><div><b>'+completed+'</b><span>выполнено</span></div></div></div>'+table("По дням",day)+table("По видам",type)+table("По статусам",status);
 });
 $("download-csv").addEventListener("click",()=>{
- const header="Госномер;Вид заявки;Автоколонна;Статус;Комментарий;Дата\n";
- const body=allRequests.map(r=>[r.vehicle,r.type,r.fleet||"",r.status,r.comment||"",dateText(r.createdAt)].map(v=>'="'+String(v).replaceAll('"','""')+'"').join(";")).join("\n");
+ const header="Госномер;Вид заявки;Вид ремонта;Автоколонна;Статус;Комментарий;Дата\n";
+ const body=allRequests.map(r=>[r.vehicle,r.type,r.repairType||"",r.fleet||"",r.status,r.comment||"",dateText(r.createdAt)].map(v=>'="'+String(v).replaceAll('"','""')+'"').join(";")).join("\n");
  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\uFEFF"+header+body],{type:"text/csv;charset=utf-8"}));a.download="zayavki_remont.csv";a.click();
 });
 hide("loading");show("main-screen");
