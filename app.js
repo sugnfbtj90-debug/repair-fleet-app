@@ -60,7 +60,7 @@ $("request-form").addEventListener("submit",async e=>{
   $("vehicle").value="";$("comment").value="";
   $("create-message").textContent="Заявка создана.";
   show("create-message");
- }catch(err){alert("Не удалось создать заявку: "+err.message)}
+ }catch(err){$("create-message").textContent="Заявка не создана: "+(err.code||"ошибка")+" — "+err.message;show("create-message")}
 });
 
 function statsObj(rows,key){const o={};rows.forEach(r=>{const v=key(r);o[v]=(o[v]||0)+1});return o}
