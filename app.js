@@ -80,6 +80,7 @@ $("request-form").addEventListener("submit",async e=>{
  try{
   const vehicle=$("vehicle").value.trim().toUpperCase();
   const type=$("type").value;
+  const repairType=type==="Ремонт"?$("repair-type").value:"";
   const fleet=$("fleet").value;
   const comment=$("comment").value.trim();
   const createdAt=new Date();
