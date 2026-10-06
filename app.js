@@ -7,6 +7,7 @@ const $=id=>document.getElementById(id);
 let allRequests=[],unsubscribe=null;
 
 function show(id){$(id).classList.remove("hidden")}
+function hide(id){$(id).classList.add("hidden")}
 function dateText(ts){if(!ts)return "";const d=ts.toDate?ts.toDate():new Date(ts);return d.toLocaleString("ru-RU")}
 
 function renderRequests(){
