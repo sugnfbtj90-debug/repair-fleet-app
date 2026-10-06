@@ -45,33 +45,46 @@ function renderRequests(){
 }
 
 let pollTimer=null;
-let firstLoad=true;
+function firestoreValue(v){
+ if(v==null)return null;
+ if("stringValue" in v)return v.stringValue;
+ if("timestampValue" in v)return new Date(v.timestampValue);
+ if("integerValue" in v)return Number(v.integerValue);
+ if("doubleValue" in v)return Number(v.doubleValue);
+ if("booleanValue" in v)return v.booleanValue;
+ if("nullValue" in v)return null;
+ return "";
+}
 async function loadRequests(){
  try{
-  if(firstLoad){
-    $("requests").innerHTML='<div class="card muted">Загрузка заявок…</div>';
-  }
-  const snap=await getDocs(collection(db,"repairRequests"));
-  allRequests=snap.docs.map(d=>({id:d.id,...d.data()}));
+  const url="https://firestore.googleapis.com/v1/projects/"+firebaseConfig.projectId+"/databases/(default)/documents/repairRequests?key="+encodeURIComponent(firebaseConfig.apiKey);
+  const response=await fetch(url,{cache:"no-store"});
+  if(!response.ok) throw new Error("Firebase HTTP "+response.status);
+  const data=await response.json();
+  allRequests=(data.documents||[]).map(d=>{
+    const f=d.fields||{};
+    return {
+      id:d.name.split("/").pop(),
+      vehicle:firestoreValue(f.vehicle),
+      type:firestoreValue(f.type),
+      comment:firestoreValue(f.comment),
+      status:firestoreValue(f.status),
+      createdAt:firestoreValue(f.createdAt),
+      updatedAt:firestoreValue(f.updatedAt)
+    };
+  });
   renderRequests();
   $("requests").dataset.loaded="1";
-  firstLoad=false;
  }catch(err){
   console.error(err);
-  if(firstLoad){
+  if(!allRequests.length){
     $("requests").innerHTML='<div class="card error"><b>Не удалось загрузить заявки.</b><br>'+((err.code||"Ошибка") + " — " + err.message)+'</div>';
   }
  }
 }
 function subscribe(){
  if(pollTimer)clearInterval(pollTimer);
- let attempts=0;
- const initialLoad=async()=>{
-   attempts++;
-   await loadRequests();
-   if(firstLoad && attempts<10) setTimeout(initialLoad,1000);
- };
- initialLoad();
+ loadRequests();
  pollTimer=setInterval(loadRequests,3000);
 }
 
