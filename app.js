@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-import { getFirestore, collection, addDoc, updateDoc, doc, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, updateDoc, doc, query, onSnapshot } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 
 const app=initializeApp(firebaseConfig),db=getFirestore(app);
@@ -12,7 +12,11 @@ function dateText(ts){if(!ts)return "";const d=ts.toDate?ts.toDate():new Date(ts
 
 function renderRequests(){
  const filter=$("status-filter").value,root=$("requests");root.innerHTML="";
- const rows=allRequests.filter(r=>r.status!=="Выполнена"&&(!filter||r.status===filter));
+ const rows=allRequests.filter(r=>r.status!=="Выполнена"&&(!filter||r.status===filter)).sort((a,b)=>{
+  const da=a.createdAt?.toDate?a.createdAt.toDate():new Date(a.createdAt||0);
+  const db=b.createdAt?.toDate?b.createdAt.toDate():new Date(b.createdAt||0);
+  return db-da;
+ });
  $("active-count").textContent=rows.length;
  if(!rows.length){root.innerHTML='<div class="card muted">Активных заявок нет.</div>';return}
  rows.forEach(r=>{
@@ -34,7 +38,7 @@ function renderRequests(){
 }
 
 function subscribe(){
- const q=query(collection(db,"repairRequests"),orderBy("createdAt","desc"));
+ const q=query(collection(db,"repairRequests"));
  if(unsubscribe)unsubscribe();
  unsubscribe=onSnapshot(q,s=>{allRequests=s.docs.map(d=>({id:d.id,...d.data()}));renderRequests()},
  err=>{console.error(err);$("requests").innerHTML='<div class="card error">Не удалось загрузить заявки. Проверьте настройки Firestore.</div>'});
