@@ -29,8 +29,13 @@ function renderRequests(){
   const s=n.querySelector(".status-select");s.value=r.status;
   s.addEventListener("change",async e=>{
     e.target.disabled=true;
-    try{await updateDoc(doc(db,"repairRequests",r.id),{status:e.target.value,updatedAt:new Date()})}
-    catch(err){alert("Ошибка: "+err.message);e.target.value=r.status}
+    try{
+      const newStatus=e.target.value;
+      await updateDoc(doc(db,"repairRequests",r.id),{status:newStatus,updatedAt:new Date()});
+      const idx=allRequests.findIndex(x=>x.id===r.id);
+      if(idx!==-1) allRequests[idx]={...allRequests[idx],status:newStatus,updatedAt:new Date()};
+      renderRequests();
+    }catch(err){alert("Ошибка: "+err.message);e.target.value=r.status}
     finally{e.target.disabled=false}
   });
   root.appendChild(n);
@@ -95,8 +100,11 @@ $("load-stats").addEventListener("click",()=>{
  });
  const day=statsObj(rows,r=>(r.createdAt.toDate?r.createdAt.toDate():new Date(r.createdAt)).toLocaleDateString("ru-RU"));
  const type=statsObj(rows,r=>r.type),status=statsObj(rows,r=>r.status);
+ const completed=rows.filter(r=>r.status==="Выполнена").length;
+ const active=rows.filter(r=>r.status!=="Выполнена").length;
+ const summary='<div class="card"><h3>Сводка</h3><div class="summary-cards"><div><b>'+rows.length+'</b><span>всего заявок</span></div><div><b>'+active+'</b><span>активных</span></div><div><b>'+completed+'</b><span>выполнено</span></div></div></div>';
  const table=(title,o)=>'<div class="card"><h3>'+title+'</h3><table class="stat-table"><tbody>'+Object.keys(o).sort().map(k=>'<tr><td>'+k+'</td><td><b>'+o[k]+'</b></td></tr>').join("")+'</tbody></table></div>';
- $("stats-content").innerHTML=table("По дням",day)+table("По видам",type)+table("По статусам",status);
+ $("stats-content").innerHTML=summary+table("По дням",day)+table("По видам",type)+table("По статусам",status);
 });
 $("download-csv").addEventListener("click",()=>{
  const header="Госномер;Вид заявки;Статус;Комментарий;Дата\n";
