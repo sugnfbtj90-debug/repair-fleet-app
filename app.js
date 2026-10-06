@@ -72,11 +72,17 @@ $("request-form").addEventListener("submit",async e=>{
   const ref=await addDoc(collection(db,"repairRequests"),{
    vehicle,type,comment,status:"Создана",createdAt,updatedAt:createdAt
   });
-  allRequests.unshift({id:ref.id,vehicle,type,comment,status:"Создана",createdAt,updatedAt:createdAt});
+  const newRequest={id:ref.id,vehicle,type,comment,status:"Создана",createdAt,updatedAt:createdAt};
+  allRequests=[newRequest,...allRequests.filter(x=>x.id!==ref.id)];
+  $("status-filter").value="";
   renderRequests();
   $("vehicle").value="";$("comment").value="";
-  $("create-message").textContent="Заявка создана и добавлена в активные.";
+  $("create-message").textContent="Заявка создана. Статус: Создана.";
   show("create-message");
+  document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x.dataset.tab==="active"));
+  document.querySelectorAll(".tab-panel").forEach(x=>x.classList.add("hidden"));
+  show("tab-active");
+  setTimeout(loadRequests,250);
  }catch(err){$("create-message").textContent="Заявка не создана: "+(err.code||"ошибка")+" — "+err.message;show("create-message")}
 });
 
