@@ -45,20 +45,33 @@ function renderRequests(){
 }
 
 let pollTimer=null;
+let firstLoad=true;
 async function loadRequests(){
  try{
+  if(firstLoad){
+    $("requests").innerHTML='<div class="card muted">Загрузка заявок…</div>';
+  }
   const snap=await getDocs(collection(db,"repairRequests"));
   allRequests=snap.docs.map(d=>({id:d.id,...d.data()}));
   renderRequests();
   $("requests").dataset.loaded="1";
+  firstLoad=false;
  }catch(err){
   console.error(err);
-  $("requests").innerHTML='<div class="card error"><b>Не удалось загрузить заявки.</b><br>'+((err.code||"Ошибка") + " — " + err.message)+'</div>';
+  if(firstLoad){
+    $("requests").innerHTML='<div class="card error"><b>Не удалось загрузить заявки.</b><br>'+((err.code||"Ошибка") + " — " + err.message)+'</div>';
+  }
  }
 }
 function subscribe(){
  if(pollTimer)clearInterval(pollTimer);
- loadRequests();
+ let attempts=0;
+ const initialLoad=async()=>{
+   attempts++;
+   await loadRequests();
+   if(firstLoad && attempts<10) setTimeout(initialLoad,1000);
+ };
+ initialLoad();
  pollTimer=setInterval(loadRequests,3000);
 }
 
