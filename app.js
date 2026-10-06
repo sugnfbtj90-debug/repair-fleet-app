@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-import { getFirestore, collection, addDoc, updateDoc, doc, getDocs } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, updateDoc, doc, getDocsFromServer } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 
 const app=initializeApp(firebaseConfig),db=getFirestore(app);
@@ -45,40 +45,18 @@ function renderRequests(){
 }
 
 let pollTimer=null;
-function firestoreValue(v){
- if(v==null)return null;
- if("stringValue" in v)return v.stringValue;
- if("timestampValue" in v)return new Date(v.timestampValue);
- if("integerValue" in v)return Number(v.integerValue);
- if("doubleValue" in v)return Number(v.doubleValue);
- if("booleanValue" in v)return v.booleanValue;
- if("nullValue" in v)return null;
- return "";
-}
+let firstLoad=true;
 async function loadRequests(){
  try{
-  const url="https://firestore.googleapis.com/v1/projects/"+firebaseConfig.projectId+"/databases/(default)/documents/repairRequests?key="+encodeURIComponent(firebaseConfig.apiKey);
-  const response=await fetch(url,{cache:"no-store"});
-  if(!response.ok) throw new Error("Firebase HTTP "+response.status);
-  const data=await response.json();
-  allRequests=(data.documents||[]).map(d=>{
-    const f=d.fields||{};
-    return {
-      id:d.name.split("/").pop(),
-      vehicle:firestoreValue(f.vehicle),
-      type:firestoreValue(f.type),
-      comment:firestoreValue(f.comment),
-      status:firestoreValue(f.status),
-      createdAt:firestoreValue(f.createdAt),
-      updatedAt:firestoreValue(f.updatedAt)
-    };
-  });
+  const snap=await getDocsFromServer(collection(db,"repairRequests"));
+  allRequests=snap.docs.map(d=>({id:d.id,...d.data()}));
   renderRequests();
   $("requests").dataset.loaded="1";
+  firstLoad=false;
  }catch(err){
   console.error(err);
-  if(!allRequests.length){
-    $("requests").innerHTML='<div class="card error"><b>Не удалось загрузить заявки.</b><br>'+((err.code||"Ошибка") + " — " + err.message)+'</div>';
+  if(firstLoad){
+    $("requests").innerHTML='<div class="card error"><b>Не удалось загрузить заявки с сервера.</b><br>'+((err.code||"Ошибка") + " — " + err.message)+'</div>';
   }
  }
 }
