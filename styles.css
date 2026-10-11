@@ -184,3 +184,30 @@ button:disabled{opacity:.5;cursor:wait;box-shadow:none}
  .pie-body{grid-template-columns:minmax(120px,150px) minmax(0,1fr);gap:16px}
  .pie-svg{max-width:150px}
 }
+
+/* Заметки внутри карточки ремонта */
+.notes-section{margin-top:16px;padding-top:16px;border-top:1px solid #ededed}
+.notes-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.notes-header h4{font-size:14px;letter-spacing:-.015em;margin:0;font-weight:800}
+.notes-count{font-size:11px;font-weight:700;color:#777;background:#f3f3f1;padding:5px 9px;border-radius:999px;white-space:nowrap}
+.notes-list{display:grid;gap:8px}
+.notes-empty{font-size:12px;color:#898989;background:#f8f8f6;border:1px dashed #dededb;border-radius:12px;padding:12px}
+.repair-note{background:#fbfbf8;border:1px solid #efefeb;border-left:3px solid var(--yellow);border-radius:5px 12px 12px 5px;padding:11px 13px;min-width:0}
+.repair-note-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:5px}
+.repair-note-head span{font-size:11px;font-weight:800;color:#4d4d4d}
+.repair-note-head time{font-size:11px;color:#818181;white-space:nowrap}
+.repair-note-text{margin:0;font-size:13px;color:#333;white-space:pre-wrap;overflow-wrap:anywhere}
+.note-form{display:grid;gap:9px;margin-top:12px}
+.note-label{gap:7px;font-size:12px;color:#686868}
+.note-input{min-height:64px;resize:vertical;background:#fff}
+.note-compose-footer{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.note-compose-footer button{white-space:nowrap;font-size:12px;padding:10px 13px}
+.note-feedback{font-size:11px;color:#777;overflow-wrap:anywhere}
+.note-feedback:not(:empty){max-width:65%}
+@media(max-width:700px){
+ .notes-header{align-items:flex-start}
+ .repair-note-head{align-items:flex-start;flex-direction:column;gap:3px}
+ .note-compose-footer{align-items:stretch;flex-direction:column}
+ .note-compose-footer button{width:100%}
+ .note-feedback:not(:empty){max-width:100%}
+}
