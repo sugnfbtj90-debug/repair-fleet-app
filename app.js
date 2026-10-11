@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-import { getFirestore, collection, addDoc, updateDoc, doc, getDocsFromServer } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, updateDoc, setDoc, doc, getDocsFromServer } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 
 const app=initializeApp(firebaseConfig),db=getFirestore(app);
@@ -168,6 +168,90 @@ function renderStatsTables(){
  $("stats-content").innerHTML='<div class="card"><h3>Сводка</h3><div class="summary-cards"><div><b>'+rows.length+'</b><span>всего заявок</span></div><div><b>'+active+'</b><span>активных</span></div><div><b>'+completed+'</b><span>выполнено</span></div></div></div>'+table("По дням",day)+table("По видам",type)+table("По статусам",status);
 }
 $("load-stats").addEventListener("click",renderStatsTables);
+
+function buildDemoRequests(){
+ const createdCounts=[8,5,4,4,3,3,3];
+ const completedCounts=[3,4,5,5,5,4,4];
+ const vehicles=[
+  "А123ВС77","М456ОР97","К789ТУ50","В234КХ99","Е567МН77",
+  "Н890РС50","О135ТА97","Р246УВ77","С357ЕК50","Т468АН99",
+  "У579МР77","Х680ВС50","А791ОР97","В802ТУ77","Е913КХ50",
+  "К124МН99","М235РС77","Н346ТА50","О457УВ97","Р568ЕК77",
+  "С679АН50","Т780МР99","У891ВС77","Х902ОР50","А013ТУ97",
+  "В124КХ77","Е235МН50","К346РС99","М457ТА77","Н568УВ50"
+ ];
+ const types=["Ремонт","Диагностика","Шиномонтаж","ТО"];
+ const repairTypes=[
+  "Ремонт тормозной системы","Ремонт рулевого управления","Ремонт ДВС",
+  "Ремонт КПП","Ремонт подвески","Жестяно-сварочные работы","Прочие слесарные работы"
+ ];
+ const comments={
+  "Ремонт":["Замена изношенных деталей, контроль после ремонта","Устранена неисправность, проведена проверка","Выполнен ремонт по результатам осмотра","Заменены расходные материалы и проверены узлы"],
+  "Диагностика":["Проведена компьютерная диагностика","Проверены основные системы автомобиля","Неисправность выявлена и устранена, контрольная проверка выполнена"],
+  "Шиномонтаж":["Проведена сезонная замена колёс","Выполнен шиномонтаж и балансировка","Проверено давление, колёса установлены"],
+  "ТО":["Выполнено плановое техническое обслуживание","Заменены масло и фильтры","Проведён регламентный осмотр"]
+ };
+ const fleets=["Автоколонна №1","Автоколонна №2","Участок механизации"];
+ const choose=arr=>arr[Math.floor(Math.random()*arr.length)];
+ const makeDate=(day,hourStart,hourEnd)=>{
+  const hour=hourStart+Math.floor(Math.random()*(hourEnd-hourStart+1));
+  const minute=Math.floor(Math.random()*60);
+  return new Date(2026,8,28+day,hour,minute,0,0);
+ };
+ const rows=[];
+ let serial=1;
+ createdCounts.forEach((count,day)=>{
+  for(let j=0;j<count;j++){
+   const type=choose(types);
+   rows.push({
+    id:"demo_utm_20260928_"+String(serial).padStart(3,"0"),
+    serial,
+    createdDay:day,
+    vehicle:vehicles[serial-1],
+    type,
+    repairType:type==="Ремонт"?choose(repairTypes):"",
+    fleet:choose(fleets),
+    comment:choose(comments[type]),
+    status:"Выполнена",
+    createdAt:makeDate(day,7,11),
+    completedAt:null,
+    demo:true,
+    demoBatch:"demo_week_20260928"
+   });
+   serial++;
+  }
+ });
+ completedCounts.forEach((count,day)=>{
+  const available=rows
+   .filter(r=>r.completedAt===null&&r.createdDay<=day)
+   .sort((a,b)=>a.createdDay-b.createdDay||a.serial-b.serial);
+  if(available.length<count) throw new Error("Не удалось распределить даты выполнения демозаявок.");
+  available.slice(0,count).forEach(r=>{
+   r.completedAt=makeDate(day,14,18);
+  });
+ });
+ return rows.map(r=>({...r,updatedAt:r.completedAt}));
+}
+$("seed-demo-btn").addEventListener("click",async()=>{
+ const button=$("seed-demo-btn"),message=$("demo-seed-message");
+ if(!window.confirm("Добавить в общую базу 30 демонстрационных выполненных заявок за 28 сентября — 4 октября 2026 года? При повторном запуске эти записи обновятся, а не продублируются.")) return;
+ button.disabled=true;message.textContent="Добавляю 30 заявок…";
+ try{
+  const rows=buildDemoRequests();
+  await Promise.all(rows.map(r=>setDoc(doc(db,"repairRequests",r.id),{
+   vehicle:r.vehicle,type:r.type,repairType:r.repairType,fleet:r.fleet,
+   comment:r.comment,status:r.status,createdAt:r.createdAt,
+   updatedAt:r.updatedAt,completedAt:r.completedAt,demo:r.demo,demoBatch:r.demoBatch
+  })));
+  await loadStatsData();
+  message.textContent="Готово: 30 демонстрационных заявок добавлены в общую статистику.";
+ }catch(err){
+  console.error(err);
+  message.textContent="Не удалось добавить демонстрационные заявки: "+(err.code||"ошибка")+" — "+err.message;
+ }
+ finally{button.disabled=false}
+});
+
 $("download-csv").addEventListener("click",()=>{
  const header="Госномер;Вид заявки;Вид ремонта;Автоколонна;Статус;Комментарий;Дата\n";
  const body=allRequests.map(r=>[r.vehicle,r.type,r.repairType||"",r.fleet||"",r.status,r.comment||"",dateText(r.createdAt)].map(v=>'="'+String(v).replaceAll('"','""')+'"').join(";")).join("\n");
