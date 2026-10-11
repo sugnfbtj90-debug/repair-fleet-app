@@ -31,6 +31,71 @@ function renderRequests(){
   badge.classList.add(r.status==="Создана"?"status-created":r.status==="В работе"?"status-working":"status-parts");
   n.querySelector(".comment").textContent=r.comment||"Без комментария";
   n.querySelector(".meta").textContent="Создана: "+dateText(r.createdAt);
+
+  const notesList=n.querySelector(".notes-list");
+  const notesCount=n.querySelector(".notes-count");
+  const noteFeedback=n.querySelector(".note-feedback");
+  const drawNotes=notes=>{
+   notesList.replaceChildren();
+   const list=Array.isArray(notes)?notes:[];
+   notesCount.textContent=list.length?list.length+" "+(list.length===1?"заметка":list.length<5?"заметки":"заметок"):"Пока нет заметок";
+   if(!list.length){
+    const empty=document.createElement("div");
+    empty.className="notes-empty";
+    empty.textContent="Здесь будут дополнительные комментарии по ходу ремонта.";
+    notesList.appendChild(empty);
+    return;
+   }
+   list.map((note,index)=>({...note,_index:index})).sort((a,b)=>{
+    const da=a.createdAt?.toDate?a.createdAt.toDate():new Date(a.createdAt||0);
+    const db=b.createdAt?.toDate?b.createdAt.toDate():new Date(b.createdAt||0);
+    return db-da;
+   }).forEach(note=>{
+    const item=document.createElement("div");
+    item.className="repair-note";
+    const head=document.createElement("div");
+    head.className="repair-note-head";
+    const label=document.createElement("span");
+    label.textContent="Заметка";
+    const date=document.createElement("time");
+    date.textContent=dateText(note.createdAt)||"Дата не указана";
+    date.dateTime=(()=>{const d=note.createdAt?.toDate?note.createdAt.toDate():new Date(note.createdAt||0);return isNaN(d)? "":d.toISOString()})();
+    head.append(label,date);
+    const text=document.createElement("p");
+    text.className="repair-note-text";
+    text.textContent=note.text||"";
+    item.append(head,text);
+    notesList.appendChild(item);
+   });
+  };
+  drawNotes(r.notes);
+  const noteForm=n.querySelector(".note-form");
+  noteForm.addEventListener("submit",async e=>{
+   e.preventDefault();
+   const textarea=noteForm.querySelector(".note-input");
+   const saveButton=noteForm.querySelector('button[type="submit"]');
+   const noteText=textarea.value.trim();
+   if(!noteText){noteFeedback.textContent="Введите текст заметки.";textarea.focus();return}
+   const latest=allRequests.find(x=>x.id===r.id)||r;
+   const previous=Array.isArray(latest.notes)?latest.notes:[];
+   const now=new Date();
+   const nextNotes=[...previous,{text:noteText,createdAt:now}];
+   saveButton.disabled=true;
+   textarea.disabled=true;
+   noteFeedback.textContent="Сохраняю…";
+   try{
+    await updateDoc(doc(db,"repairRequests",r.id),{notes:nextNotes,updatedAt:now});
+    const idx=allRequests.findIndex(x=>x.id===r.id);
+    if(idx!==-1) allRequests[idx]={...allRequests[idx],notes:nextNotes,updatedAt:now};
+    renderRequests();
+   }catch(err){
+    console.error(err);
+    noteFeedback.textContent="Не удалось сохранить заметку: "+(err.code||"ошибка")+" — "+err.message;
+    saveButton.disabled=false;
+    textarea.disabled=false;
+   }
+  });
+
   const s=n.querySelector(".status-select");s.value=r.status||"Создана";
   s.addEventListener("change",async e=>{
    e.target.disabled=true;
