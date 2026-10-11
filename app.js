@@ -233,6 +233,8 @@ function renderStatsTables(){
  $("stats-content").innerHTML=pies+'<div class="card"><h3>Сводка</h3><div class="summary-cards"><div><b>'+rows.length+'</b><span>создано за период</span></div><div><b>'+active+'</b><span>активных из заявок периода</span></div><div><b>'+completedByPeriod.length+'</b><span>выполнено за период</span></div></div></div>'+table("По дням создания",day)+table("По видам",type)+table("По текущим статусам",status);
 }
 $("load-stats").addEventListener("click",renderStatsTables);
+$("date-from").addEventListener("change",renderStatsTables);
+$("date-to").addEventListener("change",renderStatsTables);
 
 function buildDemoRequests(){
  const createdCounts=[8,5,4,4,3,3,3];
