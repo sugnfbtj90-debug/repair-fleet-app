@@ -122,37 +122,40 @@ function renderDailyChart(){
   const name=(r.fleet||"Не указана").trim();
   if(name&&!fleetNames.includes(name)) fleetNames.push(name);
  });
+ const emptyData=()=>({created:{},completed:{}});
  const byFleet={};
+ const overall=emptyData();
  const allDateKeys=new Set();
- fleetNames.forEach(name=>byFleet[name]={created:{},completed:{}});
+ fleetNames.forEach(name=>byFleet[name]=emptyData());
  allRequests.forEach(r=>{
   const fleet=(r.fleet||"Не указана").trim()||"Не указана";
-  if(!byFleet[fleet]) byFleet[fleet]={created:{},completed:{}};
+  if(!byFleet[fleet]) byFleet[fleet]=emptyData();
   const createdDate=asDate(r.createdAt);
   const completedDate=r.status==="Выполнена"?asDate(r.completedAt||r.updatedAt||r.createdAt):null;
   const ck=dateKey(createdDate),fk=dateKey(completedDate);
   if(ck){
    allDateKeys.add(ck);
+   overall.created[ck]=(overall.created[ck]||0)+1;
    byFleet[fleet].created[ck]=(byFleet[fleet].created[ck]||0)+1;
   }
   if(fk){
    allDateKeys.add(fk);
+   overall.completed[fk]=(overall.completed[fk]||0)+1;
    byFleet[fleet].completed[fk]=(byFleet[fleet].completed[fk]||0)+1;
   }
  });
  const keys=[...allDateKeys].sort();
- if(!keys.length){root.innerHTML='<div class="chart-note">Пока нет данных для построения графика.</div>';return}
+ if(!keys.length){root.innerHTML='<div class="chart-note">Пока нет данных для построения графиков.</div>';return}
  const escapeText=value=>String(value).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
- const charts=fleetNames.map(fleet=>{
-  const data=byFleet[fleet]||{created:{},completed:{}};
+ const renderChart=(data,title,isOverall=false)=>{
   const created=data.created,completed=data.completed;
   const max=Math.max(1,...keys.map(k=>Math.max(created[k]||0,completed[k]||0)));
-  const width=Math.max(680,keys.length*52),height=255,left=34,right=18,top=20,bottom=45,plotH=height-top-bottom,baseY=top+plotH;
+  const width=Math.max(680,keys.length*52),height=255,left=38,right=18,top=20,bottom=45,plotH=height-top-bottom,baseY=top+plotH;
   const groupW=Math.min(38,Math.max(26,(width-left-right)/keys.length-10)),barW=Math.max(8,(groupW-5)/2),gap=5;
   const yGrid=[0,Math.ceil(max/2),max].filter((v,i,a)=>a.indexOf(v)===i);
   const grid=yGrid.map(v=>{
    const y=baseY-(v/max)*plotH;
-   return '<line class="chart-axis" x1="'+left+'" y1="'+y+'" x2="'+(width-right)+'" y2="'+y+'"></line><text class="chart-label" x="'+(left-8)+'" y="'+(y+4)+'" text-anchor="end">'+v+'</text>';
+   return '<line class="chart-axis" x1="'+left+'" y1="'+y+'" x2="'+(width-right)+'" y2="'+y+'"></line><text class="chart-label" x="'+(left-9)+'" y="'+(y+4)+'" text-anchor="end">'+v+'</text>';
   }).join("");
   const bars=keys.map((k,i)=>{
    const x=left+(i+0.5)*((width-left-right)/keys.length)-groupW/2;
@@ -166,9 +169,10 @@ function renderDailyChart(){
   }).join("");
   const totalCreated=Object.values(created).reduce((sum,n)=>sum+n,0);
   const totalCompleted=Object.values(completed).reduce((sum,n)=>sum+n,0);
-  return '<div class="fleet-chart-block"><div class="fleet-chart-header"><h3>'+escapeText(fleet)+'</h3><span class="fleet-chart-totals">Создано: <b>'+totalCreated+'</b> · Выполнено: <b>'+totalCompleted+'</b></span></div><svg viewBox="0 0 '+width+' '+height+'" width="'+width+'" height="'+height+'" role="img" aria-label="'+escapeText(fleet)+': количество созданных и выполненных заявок по дням">'+grid+'<line class="chart-axis" x1="'+left+'" y1="'+baseY+'" x2="'+(width-right)+'" y2="'+baseY+'"></line>'+bars+'</svg></div>';
- }).join("");
- root.innerHTML='<div class="chart-note">Графики показаны отдельно для каждой автоколонны. При большом количестве дат прокручивайте график вправо.</div>'+charts;
+  return '<div class="fleet-chart-block'+(isOverall?' overall-chart':'')+'"><div class="fleet-chart-header"><h3>'+escapeText(title)+'</h3><span class="fleet-chart-totals"><span class="total-created">Создано: <b>'+totalCreated+'</b></span><span class="total-completed">Выполнено: <b>'+totalCompleted+'</b></span></span></div><svg viewBox="0 0 '+width+' '+height+'" width="'+width+'" height="'+height+'" role="img" aria-label="'+escapeText(title)+': количество созданных и выполненных заявок по дням">'+grid+'<line class="chart-axis" x1="'+left+'" y1="'+baseY+'" x2="'+(width-right)+'" y2="'+baseY+'"></line>'+bars+'</svg></div>';
+ };
+ const charts=fleetNames.map(fleet=>renderChart(byFleet[fleet]||emptyData(),fleet)).join("");
+ root.innerHTML='<div class="chart-note">Общая динамика — на первом графике. Ниже представлены те же показатели отдельно по подразделениям.</div>'+renderChart(overall,"Общий график",true)+charts;
 }
 async function loadStatsData(){
  const root=$("daily-chart");
