@@ -187,12 +187,50 @@ async function loadStatsData(){
   root.innerHTML='<div class="chart-note error"><b>Не удалось загрузить данные графика.</b><br>'+((err.code||"Ошибка")+" — "+err.message)+'</div>';
  }
 }
+function dateInsideRange(value,from,to){
+ const d=asDate(value),key=dateKey(d);
+ return !!d&&(!from||key>=from)&&(!to||key<=to);
+}
+function pieSvg(segments,total){
+ const cx=86,cy=86,r=60,circ=2*Math.PI*r;
+ let offset=0;
+ const slices=segments.filter(s=>s.value>0).map(s=>{
+  const length=total?circ*s.value/total:0;
+  const node='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+s.color+'" stroke-width="25" stroke-linecap="butt" stroke-dasharray="'+length.toFixed(3)+' '+(circ-length).toFixed(3)+'" stroke-dashoffset="'+(-offset).toFixed(3)+'" transform="rotate(-90 '+cx+' '+cy+')" />';
+  offset+=length;
+  return node;
+ }).join("");
+ const empty=total===0?'<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="#eeeeec" stroke-width="25"/>':slices;
+ return '<svg class="pie-svg" viewBox="0 0 172 172" role="img" aria-label="Всего: '+total+' заявок">'+empty+'<text class="pie-total" x="'+cx+'" y="82" text-anchor="middle">'+total+'</text><text class="pie-caption" x="'+cx+'" y="101" text-anchor="middle">заявок</text></svg>';
+}
+function pieCard(title,rows){
+ const palette=["#ee3f32","#ffcc00","#313131","#16865a","#8d73b8","#62a5bc"];
+ const fleets=["Автоколонна №1","Автоколонна №2","Участок механизации"];
+ const names=[...fleets];
+ rows.forEach(r=>{
+  const name=(r.fleet||"Не указана").trim()||"Не указана";
+  if(!names.includes(name)) names.push(name);
+ });
+ const segments=names.map((name,i)=>({
+  name,value:rows.filter(r=>((r.fleet||"Не указана").trim()||"Не указана")===name).length,color:palette[i%palette.length]
+ }));
+ const total=segments.reduce((sum,s)=>sum+s.value,0);
+ const legend=segments.map(s=>{
+  const pct=total?Math.round(s.value/total*100):0;
+  return '<li class="pie-legend-row"><span class="pie-dot" style="background:'+s.color+'"></span><span class="pie-legend-name">'+s.name+'</span><b>'+s.value+'</b><span class="pie-percent">'+pct+'%</span></li>';
+ }).join("");
+ return '<div class="card pie-card"><div class="pie-title-row"><div><h3>'+title+'</h3><p class="hint">Распределение по автоколоннам</p></div><span class="pie-period-total">'+total+' заявок</span></div><div class="pie-body">'+pieSvg(segments,total)+'<ul class="pie-legend">'+legend+'</ul></div></div>';
+}
 function renderStatsTables(){
- const rows=filteredStatsRows();
+ const from=$("date-from").value,to=$("date-to").value;
+ const rows=allRequests.filter(r=>dateInsideRange(r.createdAt,from,to));
+ const createdByPeriod=rows;
+ const completedByPeriod=allRequests.filter(r=>r.status==="Выполнена"&&dateInsideRange(r.completedAt||r.updatedAt||r.createdAt,from,to));
  const day=statsObj(rows,r=>dateLabel(dateKey(asDate(r.createdAt)))),type=statsObj(rows,r=>r.type),status=statsObj(rows,r=>r.status);
  const completed=rows.filter(r=>r.status==="Выполнена").length,active=rows.length-completed;
  const table=(title,o)=>'<div class="card"><h3>'+title+'</h3><table class="stat-table"><tbody>'+Object.keys(o).sort().map(k=>'<tr><td>'+k+'</td><td><b>'+o[k]+'</b></td></tr>').join("")+'</tbody></table></div>';
- $("stats-content").innerHTML='<div class="card"><h3>Сводка</h3><div class="summary-cards"><div><b>'+rows.length+'</b><span>всего заявок</span></div><div><b>'+active+'</b><span>активных</span></div><div><b>'+completed+'</b><span>выполнено</span></div></div></div>'+table("По дням",day)+table("По видам",type)+table("По статусам",status);
+ const pies='<div class="pie-grid">'+pieCard("Созданные заявки",createdByPeriod)+pieCard("Выполненные заявки",completedByPeriod)+'</div>';
+ $("stats-content").innerHTML=pies+'<div class="card"><h3>Сводка</h3><div class="summary-cards"><div><b>'+rows.length+'</b><span>создано за период</span></div><div><b>'+active+'</b><span>активных из заявок периода</span></div><div><b>'+completedByPeriod.length+'</b><span>выполнено за период</span></div></div></div>'+table("По дням создания",day)+table("По видам",type)+table("По текущим статусам",status);
 }
 $("load-stats").addEventListener("click",renderStatsTables);
 
